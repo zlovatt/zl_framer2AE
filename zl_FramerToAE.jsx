@@ -47,7 +47,9 @@
 		var compPixelAspectRatio = 1.0;
 		var compDuration = 30;
 		var compFrameRate = 24;
-		var framerComp = compFolder.items.addComp(projName, compObject.layerFrame.height, compObject.layerFrame.width, compPixelAspectRatio, compDuration, compFrameRate);
+		var framerComp = compFolder.items.addComp(projName, compObject.layerFrame.width, compObject.layerFrame.height, compPixelAspectRatio, compDuration, compFrameRate);
+
+        framerComp.openInViewer();
 
 		return framerComp;
 	} // end zl_F2AE_createComp
@@ -79,16 +81,62 @@
 		    var curFileAsLayer = targetComp.layers.add(curFile);
 
 		    curFileAsLayer.name = curObjectLayer.name;
+            curFileAsLayer.enabled = curObjectLayer.visible;
 		    curFileAsLayer.transform.position.setValue([curObjectLayer.layerFrame.x, curObjectLayer.layerFrame.y]);
 		}
 	} // end zl_F2AE_createLayers
 
 
     /****************************** 
+        zl_TrimCompToContents_createPalette()
+          
+        Description:
+        Creates ScriptUI Palette Panel
+        Generated using Boethos (crgreen.com/boethos)
+        
+        Parameters:
+        thisObj - this comp object
+        
+        Returns:
+        Nothing
+     ******************************/
+    function zl_F2AE_createPalette(thisObj) { 
+        var win = (thisObj instanceof Panel) ? thisObj : new Window('palette', 'Framer to AE', undefined); 
+        
+        { // Buttons
+            win.importJsonButton = win.add('button', undefined, 'Import Framer JSON'); 
+            win.importJsonButton.alignment = "fill";
+            
+            win.importJsonButton.onClick = function () {
+                app.beginUndoGroup("Framer 2 AE");
+
+                var jsonFile = File.openDialog("Choose your json file", "*.json");
+                var jsonObject = zl_F2AE_readJSON(jsonFile);
+                
+                var projName = jsonFile.parent.name;
+
+                if (jsonObject !== null){
+                    var framerComp = zl_F2AE_createComp(projName, jsonObject[0]);
+                    zl_F2AE_createLayers (framerComp, jsonObject, jsonFile.path + "/");
+                }
+
+                app.endUndoGroup();
+            } 
+        }
+    
+        if (win instanceof Window) {
+            win.show();
+        } else {
+            win.layout.layout(true);
+        }
+    } // end function createPalette
+
+
+    /****************************** 
         zl_F2AE_main()
           
         Description:
-        Main logic
+        Builds palette
          
         Parameters:
         None.
@@ -96,18 +144,8 @@
         Returns:
         Nothing.
     ******************************/
-	function zl_F2AE_main() {
-        var jsonFile = File.openDialog("Choose your json file", "*.json");
-        var jsonObject = zl_F2AE_readJSON(jsonFile);
-        
-        var projName = jsonFile.parent.name;
-
-        if (jsonObject !== null){
-            var framerComp = zl_F2AE_createComp(projName, jsonObject[0]);
-            zl_F2AE_createLayers (framerComp, jsonObject, jsonFile.path + "/");
-        }
+	function zl_F2AE_main(thisObj) {
+        zl_F2AE_createPalette(thisObj);
 	} // end zl_F2AE_main
 
-	app.beginUndoGroup("Framer 2 AE");
-	zl_F2AE_main();
-	app.endUndoGroup();
+    zl_F2AE_main(this);
