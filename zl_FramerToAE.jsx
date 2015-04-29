@@ -33,21 +33,17 @@
         Read the JSON file, output an object
          
         Parameters:
-        projName - project name
         compObject - comp object from json
 
         Returns:
         framerComp - generated comp
     ******************************/
-	function zl_F2AE_createComp (projName, compObject){
+	function zl_F2AE_createComp (compFolder, compObject){
 
-		var proj = (app.project) ? app.project: app.newProject();
-
-		var compFolder = app.project.items.addFolder(projName);
 		var compPixelAspectRatio = 1.0;
 		var compDuration = 30;
 		var compFrameRate = 24;
-		var framerComp = compFolder.items.addComp(projName, compObject.layerFrame.width, compObject.layerFrame.height, compPixelAspectRatio, compDuration, compFrameRate);
+		var framerComp = compFolder.items.addComp(compObject.name, compObject.layerFrame.width, compObject.layerFrame.height, compPixelAspectRatio, compDuration, compFrameRate);
 
         framerComp.openInViewer();
 
@@ -71,18 +67,47 @@
     ******************************/
 	function zl_F2AE_createLayers (targetComp, jsonObject, jsonPath){
 
-		var objLayers = jsonObject[0].children;
+		var objLayers = jsonObject.children;
 
 		for (var i = 0; i < objLayers.length; i++){
 			var curObjectLayer = objLayers[i];
-		    var curFilePath = new File(jsonPath + curObjectLayer.image.path);
-		    var curFile = app.project.importFile(new ImportOptions(curFilePath));
-            curFile.parentFolder = targetComp.parentFolder;
-		    var curFileAsLayer = targetComp.layers.add(curFile);
 
-		    curFileAsLayer.name = curObjectLayer.name;
-            curFileAsLayer.enabled = curObjectLayer.visible;
-		    curFileAsLayer.transform.position.setValue([curObjectLayer.layerFrame.x, curObjectLayer.layerFrame.y]);
+            if (curObjectLayer.image == undefined) {
+                if (curObjectLayer.children.length > 0){
+                    // No image & children! Create precomp
+                    var newPrecomp = zl_F2AE_createComp(targetComp.parentFolder, curObjectLayer);
+                    zl_F2AE_createLayers (newPrecomp, curObjectLayer, jsonPath);
+                    targetComp.layers.add(newPrecomp);
+                } else {
+                    // No image & no children! what am I doing here
+                    alert(curObjectLayer.name + " what am I doing here")
+                }
+//alert(curObjectLayer.name + " has no image");
+            } else {
+
+                var imgPath = curObjectLayer.image.path;
+                var curFilePath = new File(jsonPath + imgPath);
+
+                try {
+                    var curFile = app.project.importFile(new ImportOptions(curFilePath));
+                } catch (e) {
+                    $.writeln(curObjectLayer.name + ": " + typeof curObjectLayer + " (" + jsonPath + imgPath + ")");
+                    var curFile = app.project.importFile(new ImportOptions(new File(jsonPath + objLayers[i-1].image.path)));
+                }
+
+                curFile.parentFolder = targetComp.parentFolder;
+                var curFileAsLayer = targetComp.layers.add(curFile);
+
+                curFileAsLayer.name = curObjectLayer.name;
+                curFileAsLayer.enabled = curObjectLayer.visible;
+                curFileAsLayer.transform.position.setValue([curObjectLayer.layerFrame.x, curObjectLayer.layerFrame.y]);
+
+                if (curObjectLayer.children.length > 0) {
+                    // Image and children! Parent the kids
+                } else {
+                    // Image and no children! Make a layer
+                }
+            }
 		}
 	} // end zl_F2AE_createLayers
 
@@ -116,8 +141,16 @@
                 var projName = jsonFile.parent.name;
 
                 if (jsonObject !== null){
-                    var framerComp = zl_F2AE_createComp(projName, jsonObject[0]);
-                    zl_F2AE_createLayers (framerComp, jsonObject, jsonFile.path + "/");
+
+                    var proj = (app.project) ? app.project: app.newProject();
+
+                    for (var i = 0; i < jsonObject.length; i++) {
+                        var thisArtboardObject = jsonObject[i];
+                        var compFolder = app.project.items.addFolder(thisArtboardObject.name);
+
+                        var framerComp = zl_F2AE_createComp(compFolder, thisArtboardObject);
+                        zl_F2AE_createLayers (framerComp, thisArtboardObject, jsonFile.path + "/");
+                    };
                 }
 
                 app.endUndoGroup();
