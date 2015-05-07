@@ -118,8 +118,74 @@
 
 
 
+    function zl_F2AE_importImage(jsonPath, objectComp, objectKey) {
+        var keyImagePath = objectKey.image.path;
+        var curFilePath = new File(jsonPath + keyImagePath);
+
+        try {
+            var curFile = app.project.importFile(new ImportOptions(curFilePath));
+        } catch (e) {
+            var curFile = app.project.importPlaceholder(objectKey.name, objectKey.layerFrame.width, objectKey.layerFrame.height, 24, 30);
+        }
+
+        curFile.parentFolder = objectComp.parentFolder;
+        var curFileAsLayer = objectComp.layers.add(curFile);
+
+        curFileAsLayer.name = objectKey.name;
+        curFileAsLayer.enabled = objectKey.visible;
+                
+        curFileAsLayer.transform.anchorPoint.setValue([0,0]);
+        curFileAsLayer.transform.position.setValue([0,0]);
+        return curFileAsLayer;
+    }
+
+
+    function zl_F2AE_processKey (jsonPath, objectComp, objectKey){
+        var keyName = objectKey.name;
+        var keyChildren = objectKey.children; // an array
+        
+        if (keyChildren.length > 0) {
+            if (objectKey.hasOwnProperty("image")) {
+                // yes children, yes image
+                var childImage = zl_F2AE_importImage(jsonPath, objectComp, objectKey);
+                //childImage.transform.position.setValue([objectKey.layerFrame.x - thisJsonObject.layerFrame.x, thisChild.layerFrame.y - thisJsonObject.layerFrame.y]);
+                //childImage.transform.position.setValue([objectKey.layerFrame.x, objectKey.layerFrame.y]);
+
+                for (var i = keyChildren.length - 1; i >= 0; i--) {
+                    zl_F2AE_processKey(jsonPath, objectComp, keyChildren[i]);
+                }
+            } else {
+                // yes children, no image
+                var compFolder = app.project.items.addFolder(objectKey.name);
+                var childObjectComp = zl_F2AE_createComp(objectKey, compFolder);
+                var elementsFolder = app.project.items.addFolder(childObjectComp.name + " Elements");
+                elementsFolder.parentFolder = compFolder;
+                
+                var newCompAsLayer = objectComp.layers.add(childObjectComp);
+                
+      
+                newCompAsLayer.transform.anchorPoint.setValue([0,0]);
+                newCompAsLayer.transform.position.setValue([objectKey.layerFrame.x, objectKey.layerFrame.y]);
+
+                for (var i = keyChildren.length - 1; i >= 0; i--) {
+                    zl_F2AE_processKey(jsonPath, childObjectComp, keyChildren[i]);
+                }
+            }
+        } else {
+            if (objectKey.hasOwnProperty("image")) {
+                // 0 or 1 children, has to have image?
+                var childImage = zl_F2AE_importImage(jsonPath, objectComp, objectKey);
+            } else {
+                // no children, no image
+                alert(keyName + ": what am I doing here?");
+            }
+        }
+
+    }
+
+
     /****************************** 
-        zl_TrimCompToContents_createPalette()
+        zl_F2AE_createPalette()
           
         Description:
         Creates ScriptUI Palette Panel
@@ -143,10 +209,19 @@
 
                 var jsonFile = File.openDialog("Choose your json file", "*.json");
                 var jsonObject = zl_F2AE_readJSON(jsonFile);
+                var jsonPath = jsonFile.path + "/";
 
                 if (jsonObject !== null){
                     var proj = (app.project) ? app.project: app.newProject();
 
+                    //for (var i = 0; i < jsonObject.length; i++){
+                        var compFolder = proj.items.addFolder(jsonObject[1].name);
+                        var thisObjectComp = zl_F2AE_createComp(jsonObject[1], compFolder);
+                        zl_F2AE_processKey(jsonPath, thisObjectComp, jsonObject[1]);
+                        thisObjectComp.openInViewer();
+                    //}
+
+/*
                     for (var i = 0; i < jsonObject.length; i++){
                         var thisJsonObject = jsonObject[i];
                         var compFolder = app.project.items.addFolder(thisJsonObject.name);
@@ -156,6 +231,7 @@
                         zl_F2AE_processChildren(thisJsonObject, thisObjectComp, elementsFolder, jsonFile.path + "/")
                         thisObjectComp.openInViewer();
                     }
+*/
                 }
 
                 app.endUndoGroup();
