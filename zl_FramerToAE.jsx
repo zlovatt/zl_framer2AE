@@ -140,44 +140,64 @@
     }
 
 
-    function zl_F2AE_processKey (jsonPath, objectComp, objectKey){
-        var keyName = objectKey.name;
+    function zl_F2AE_processKey (jsonPath, objectComp, objectKey, objectParent){
         var keyChildren = objectKey.children; // an array
-        
+        var skipComp = false;
+
+
+        if (objectComp == undefined){
+            var compFolder = proj.items.addFolder(objectKey.name);
+            objectComp = zl_F2AE_createComp(objectKey, compFolder);
+            objectComp.openInViewer();
+            skipComp = true;
+        } else {
+            var compFolder = objectComp.parentFolder;
+        }
+
         if (keyChildren.length > 0) {
             if (objectKey.hasOwnProperty("image")) {
                 // yes children, yes image
                 var childImage = zl_F2AE_importImage(jsonPath, objectComp, objectKey);
-                //childImage.transform.position.setValue([objectKey.layerFrame.x - thisJsonObject.layerFrame.x, thisChild.layerFrame.y - thisJsonObject.layerFrame.y]);
-                //childImage.transform.position.setValue([objectKey.layerFrame.x, objectKey.layerFrame.y]);
+                childImage.transform.anchorPoint.setValue([0,0]);
+                childImage.transform.position.setValue([objectKey.layerFrame.x, objectKey.layerFrame.y]);
 
                 for (var i = keyChildren.length - 1; i >= 0; i--) {
-                    zl_F2AE_processKey(jsonPath, objectComp, keyChildren[i]);
+                    var newChild = zl_F2AE_processKey(jsonPath, objectComp, keyChildren[i], objectKey);
+                    newChild.transform.anchorPoint.setValue([0,0]);
+                    newChild.transform.position.setValue([keyChildren[i].layerFrame.x - objectKey.layerFrame.x, keyChildren[i].layerFrame.y - objectKey.layerFrame.y]);
                 }
+
+                return childImage;
             } else {
                 // yes children, no image
-                var compFolder = app.project.items.addFolder(objectKey.name);
+                
                 var childObjectComp = zl_F2AE_createComp(objectKey, compFolder);
-                var elementsFolder = app.project.items.addFolder(childObjectComp.name + " Elements");
-                elementsFolder.parentFolder = compFolder;
-                
                 var newCompAsLayer = objectComp.layers.add(childObjectComp);
-                
-      
                 newCompAsLayer.transform.anchorPoint.setValue([0,0]);
                 newCompAsLayer.transform.position.setValue([objectKey.layerFrame.x, objectKey.layerFrame.y]);
-
+            
                 for (var i = keyChildren.length - 1; i >= 0; i--) {
-                    zl_F2AE_processKey(jsonPath, childObjectComp, keyChildren[i]);
+                    var newComp = zl_F2AE_processKey(jsonPath, childObjectComp, keyChildren[i], objectKey);
+                    newComp.transform.anchorPoint.setValue([0,0]);
+                    newComp.transform.position.setValue([keyChildren[i].layerFrame.x - objectKey.layerFrame.x, keyChildren[i].layerFrame.y - objectKey.layerFrame.y]);
                 }
+
+                return newCompAsLayer;
             }
         } else {
             if (objectKey.hasOwnProperty("image")) {
                 // 0 or 1 children, has to have image?
                 var childImage = zl_F2AE_importImage(jsonPath, objectComp, objectKey);
+
+                childImage.transform.anchorPoint.setValue([0,0]);
+                childImage.transform.position.setValue([objectKey.layerFrame.x, objectKey.layerFrame.y]);
+
+                return childImage;
             } else {
                 // no children, no image
-                alert(keyName + ": what am I doing here?");
+                alert(objectKey.name + ": what am I doing here?");
+
+                return null;
             }
         }
 
@@ -215,23 +235,11 @@
                     var proj = (app.project) ? app.project: app.newProject();
 
                     //for (var i = 0; i < jsonObject.length; i++){
-                        var compFolder = proj.items.addFolder(jsonObject[1].name);
-                        var thisObjectComp = zl_F2AE_createComp(jsonObject[1], compFolder);
-                        zl_F2AE_processKey(jsonPath, thisObjectComp, jsonObject[1]);
-                        thisObjectComp.openInViewer();
+                       // var compFolder = proj.items.addFolder(jsonObject[1].name);
+                     //   var thisObjectComp = zl_F2AE_createComp(jsonObject[1], compFolder);
+                        zl_F2AE_processKey(jsonPath, undefined, jsonObject[1]);
+                      //  thisObjectComp.openInViewer();
                     //}
-
-/*
-                    for (var i = 0; i < jsonObject.length; i++){
-                        var thisJsonObject = jsonObject[i];
-                        var compFolder = app.project.items.addFolder(thisJsonObject.name);
-                        var thisObjectComp = zl_F2AE_createComp(thisJsonObject, compFolder);
-                        var elementsFolder = app.project.items.addFolder(thisObjectComp.name + " Elements");
-                        elementsFolder.parentFolder = compFolder;
-                        zl_F2AE_processChildren(thisJsonObject, thisObjectComp, elementsFolder, jsonFile.path + "/")
-                        thisObjectComp.openInViewer();
-                    }
-*/
                 }
 
                 app.endUndoGroup();
