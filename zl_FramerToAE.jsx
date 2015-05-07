@@ -46,11 +46,14 @@
 		var compDuration = 30;
 		var compFrameRate = 24;
         
+        var thisWidth = compObject.layerFrame.width;
+        if (thisWidth < 4) thisWidth = 4;
+        
         var thisHeight = compObject.layerFrame.height;
         if (thisHeight < 4) thisHeight = 4;
         
-		var framerComp = compFolder.items.addComp(compObject.name, compObject.layerFrame.width, thisHeight, compPixelAspectRatio, compDuration, compFrameRate);
-
+        var framerComp = compFolder.items.addComp(compObject.name, thisWidth, thisHeight, compPixelAspectRatio, compDuration, compFrameRate);
+        
         framerComp.bgColor = [1, 1, 1];
 
 		return framerComp;
@@ -58,68 +61,132 @@
 
 
     /****************************** 
-        zl_F2AE_processChildren()
+        zl_F2AE_importImage()
           
         Description:
-        This is really really sloppy but it works.
+        Imports the target image, places in proper comp
 
         Parameters:
-        thisJsonObject - current object from the json
-        thisObjectComp - current comp from object
-        compFolder - the folder
         jsonPath - file path
+        objectComp - current comp
+        objectKey - current key
 
         Returns:
-        framerComp - generated comp
+        curFileAsLayer - Current image as a layer
     ******************************/
-    function zl_F2AE_processChildren(thisJsonObject, thisObjectComp, compFolder, jsonPath){
-        var numChildren = thisJsonObject.children.length;
-    
-        if (thisJsonObject.image == undefined){
-            if (numChildren !== 0){
-                for (var j = numChildren-1; j >= 0; j--){
-                    var thisChild = thisJsonObject.children[j];
-                    var newComp = zl_F2AE_createComp(thisChild, compFolder);
-                    var newCompAsLayer = thisObjectComp.layers.add(newComp);
-                    newCompAsLayer.transform.anchorPoint.setValue([0,0]);
-                    newCompAsLayer.transform.position.setValue([thisChild.layerFrame.x - thisJsonObject.layerFrame.x, thisChild.layerFrame.y - thisJsonObject.layerFrame.y]);
-                    zl_F2AE_processChildren(thisChild, newComp, compFolder, jsonPath);
-                }
-            } else {
-                alert (thisJsonObject.name + " impossible");
-            }
+    function zl_F2AE_importImage(jsonPath, objectComp, objectKey, compFolder) {
+        var keyImagePath = objectKey.image.path;
+        var curFilePath = new File(jsonPath + keyImagePath);
+
+        try {
+            var curFile = app.project.importFile(new ImportOptions(curFilePath));
+        } catch (e) {
+            var curFile = app.project.importPlaceholder(objectKey.name, objectKey.layerFrame.width, objectKey.layerFrame.height, 24, 30);
         }
 
-        if (thisJsonObject.image !== undefined){
-
-            var imgPath = thisJsonObject.image.path;
-            var curFilePath = new File(jsonPath + imgPath);
-
-            try {
-                var curFile = app.project.importFile(new ImportOptions(curFilePath));
-            } catch (e) {
-                var curFile = app.project.importPlaceholder(thisJsonObject.name, thisJsonObject.layerFrame.width, thisJsonObject.layerFrame.height, 24, 30);
-            }
-
-            curFile.parentFolder = thisObjectComp.parentFolder;
-            var curFileAsLayer = thisObjectComp.layers.add(curFile);
-
-            curFileAsLayer.name = thisJsonObject.name;
-            curFileAsLayer.enabled = thisJsonObject.visible;
-            
-            curFileAsLayer.transform.anchorPoint.setValue([0,0]);
-            curFileAsLayer.transform.position.setValue([0,0]);
-
-            if (numChildren !== 0){
-                // there shouldn't be a precomp (should just be an image), so set each curFileAsLayer.parent to thisJsonObject 
-            }
-        }
-    } // end processChildren
-
+        curFile.parentFolder = compFolder;
+        //curFile.selected = false;
+        
+        var curFileAsLayer = objectComp.layers.add(curFile);
+        curFileAsLayer.name = objectKey.name;
+        curFileAsLayer.enabled = objectKey.visible;
+        
+        curFileAsLayer.transform.anchorPoint.setValue([0,0]);
+        curFileAsLayer.transform.position.setValue([0,0]);
+       
+        return curFileAsLayer;
+    } // end zl_F2AE_importImage
 
 
     /****************************** 
-        zl_TrimCompToContents_createPalette()
+        zl_F2AE_processKey()
+        
+        Description:
+        All key logic
+        
+        Parameters:
+        jsonPath - file path
+        objectComp - current comp
+        objectKey - current key
+        objectParent - parent object
+
+        Returns:
+        Nothing.
+    ******************************/
+    function zl_F2AE_processKey (jsonPath, objectComp, objectKey, objectParent){
+        var keyChildren = objectKey.children;
+        var skipComp = false;
+
+
+        if (objectComp == undefined){
+            var compFolder = app.project.items.addFolder(objectKey.name);
+            objectComp = zl_F2AE_createComp(objectKey, app.project.rootFolder);
+            objectComp.openInViewer();
+            skipComp = true;
+        } else {
+            var compFolder = objectComp.parentFolder;
+        }
+
+        if (compFolder == app.project.rootFolder && skipComp == false){
+            for (var i = 1; i <= app.project.rootFolder.items.length; i++){
+                var found = false;
+                var thisItem = app.project.rootFolder.items[i];
+                if (thisItem.name == objectParent.name && thisItem instanceof FolderItem){
+                    compFolder = thisItem;
+                    found = true;
+                    break;
+                }
+                if (found == true)
+                    break;
+            }
+        }
+
+        if (objectKey.hasOwnProperty('image')) { // yes image
+            var childImage = zl_F2AE_importImage(jsonPath, objectComp, objectKey, compFolder);
+            childImage.transform.anchorPoint.setValue([0,0]);
+            childImage.transform.position.setValue([objectKey.layerFrame.x, objectKey.layerFrame.y]);
+
+            if (keyChildren.length > 0) { // yes children, yes image
+                
+                for (var i = keyChildren.length - 1; i >= 0; i--) {
+                    var newChild = zl_F2AE_processKey(jsonPath, objectComp, keyChildren[i], objectKey);
+                    newChild.parent = childImage;
+                    newChild.transform.anchorPoint.setValue([0,0]);
+                    newChild.transform.position.setValue([keyChildren[i].layerFrame.x - objectKey.layerFrame.x, keyChildren[i].layerFrame.y - objectKey.layerFrame.y]);
+                }
+            } else { // yes image, no children
+            }
+        
+            return childImage;
+        } else { // no image
+            if (keyChildren.length > 0) { // no image, yes children
+                if (skipComp == false) {
+                    var childObjectComp = zl_F2AE_createComp(objectKey, compFolder);
+                    var newCompAsLayer = objectComp.layers.add(childObjectComp);
+                    newCompAsLayer.transform.anchorPoint.setValue([0,0]);
+                    newCompAsLayer.transform.position.setValue([objectKey.layerFrame.x, objectKey.layerFrame.y]);
+                } else {
+                    var childObjectComp = objectComp;
+                    var newCompAsLayer = objectComp;
+                }
+
+                for (var i = keyChildren.length - 1; i >= 0; i--) {
+                    var newComp = zl_F2AE_processKey(jsonPath, childObjectComp, keyChildren[i], objectKey);
+                    newComp.transform.anchorPoint.setValue([0,0]);
+                    newComp.transform.position.setValue([keyChildren[i].layerFrame.x - objectKey.layerFrame.x, keyChildren[i].layerFrame.y - objectKey.layerFrame.y]);
+                }
+
+                return newCompAsLayer;
+            } else { // no image, no children
+                alert(objectKey.name + ": I shouldn't be here.");
+                return null;
+            }
+        }
+    } // end zl_F2AE_processKey
+
+
+    /****************************** 
+        zl_F2AE_createPalette()
           
         Description:
         Creates ScriptUI Palette Panel
@@ -143,18 +210,13 @@
 
                 var jsonFile = File.openDialog("Choose your json file", "*.json");
                 var jsonObject = zl_F2AE_readJSON(jsonFile);
+                var jsonPath = jsonFile.path + "/";
 
                 if (jsonObject !== null){
                     var proj = (app.project) ? app.project: app.newProject();
 
                     for (var i = 0; i < jsonObject.length; i++){
-                        var thisJsonObject = jsonObject[i];
-                        var compFolder = app.project.items.addFolder(thisJsonObject.name);
-                        var thisObjectComp = zl_F2AE_createComp(thisJsonObject, compFolder);
-                        var elementsFolder = app.project.items.addFolder(thisObjectComp.name + " Elements");
-                        elementsFolder.parentFolder = compFolder;
-                        zl_F2AE_processChildren(thisJsonObject, thisObjectComp, elementsFolder, jsonFile.path + "/")
-                        thisObjectComp.openInViewer();
+                        zl_F2AE_processKey(jsonPath, undefined, jsonObject[i]);
                     }
                 }
 

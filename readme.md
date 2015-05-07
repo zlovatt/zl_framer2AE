@@ -1,5 +1,8 @@
 ### TODO:
 - check/ensure that it's a json
-- properly split processChildren comp
-- figure out why some images are generating placeholder
-- don't generate comps for everything
+- figure out why the placeholders are coming in
+
+
+A:
+childImage.transform.anchorPoint.setValue([0,0]);
+childImage.transform.position.setValue([objectKey.layerFrame.x, objectKey.layerFrame.y]);
