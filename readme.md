@@ -25,7 +25,7 @@ The script should build out an AE project matching what you had in Sketch.
 -----------------------
 #### Installation
 
-Copy "el_prism.jsxbin" to your ScriptUI Panels folder, usually here:
+Copy "zl_FramerToAE.jsxbin" to your ScriptUI Panels folder, usually here:
 
 * PC:	C:\Program Files\Adobe\Adobe After Effects CC\Support Files\Scripts\ScriptUI Panels\
 * Mac:	\Applications\Adobe After Effects CC\Scripts\ScriptUI Panels\
