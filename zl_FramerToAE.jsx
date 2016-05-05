@@ -42,16 +42,16 @@
         Returns:
         framerComp - generated comp
     ******************************/
-	function zl_F2AE_createComp (compObject, compFolder){
+	function zl_F2AE_createComp (compObject, compFolder, sceneScale){
 
 		var compPixelAspectRatio = 1.0;
 		var compDuration = 30;
 		var compFrameRate = 24;
 
-        var thisWidth = compObject.layerFrame.width;
+        var thisWidth = compObject.layerFrame.width * sceneScale;
         if (thisWidth < 4) thisWidth = 4;
 
-        var thisHeight = compObject.layerFrame.height;
+        var thisHeight = compObject.layerFrame.height * sceneScale;
         if (thisHeight < 4) thisHeight = 4;
 
         var framerComp = compFolder.items.addComp(compObject.name, thisWidth, thisHeight, compPixelAspectRatio, compDuration, compFrameRate);
@@ -122,7 +122,7 @@
 
         if (objectComp == undefined){
             var compFolder = app.project.items.addFolder(objectKey.name);
-            objectComp = zl_F2AE_createComp(objectKey, app.project.rootFolder);
+            objectComp = zl_F2AE_createComp(objectKey, app.project.rootFolder, sceneScale);
             objectComp.openInViewer();
             skipComp = true;
         } else {
@@ -145,7 +145,6 @@
 
         if (objectKey.hasOwnProperty('image')) { // yes image
             var childImage = zl_F2AE_importImage(jsonPath, objectComp, objectKey, compFolder);
-            childImage.transform.scale.setValue([100/3,100/3]);
             childImage.transform.anchorPoint.setValue([0,0]);
             childImage.transform.position.setValue([objectKey.layerFrame.x, objectKey.layerFrame.y]);
 
@@ -156,7 +155,6 @@
                     newChild.parent = childImage;
                     newChild.transform.anchorPoint.setValue([0,0]);
                     newChild.transform.position.setValue([keyChildren[i].layerFrame.x*sceneScale - objectKey.layerFrame.x*sceneScale, keyChildren[i].layerFrame.y*sceneScale - objectKey.layerFrame.y*sceneScale]);
-                    // newChild.transform.scale.setValue([100/3,100/3]);
                 }
             } else { // yes image, no children
             }
@@ -165,10 +163,10 @@
         } else { // no image
             if (keyChildren.length > 0) { // no image, yes children
                 if (skipComp == false) {
-                    var childObjectComp = zl_F2AE_createComp(objectKey, compFolder);
+                    var childObjectComp = zl_F2AE_createComp(objectKey, compFolder, sceneScale);
                     var newCompAsLayer = objectComp.layers.add(childObjectComp);
                     newCompAsLayer.transform.anchorPoint.setValue([0,0]);
-                    newCompAsLayer.transform.position.setValue([objectKey.layerFrame.x, objectKey.layerFrame.y]);
+                    newCompAsLayer.transform.position.setValue([objectKey.layerFrame.x*sceneScale, objectKey.layerFrame.y*sceneScale]);
                 } else {
                     var childObjectComp = objectComp;
                     var newCompAsLayer = objectComp;
@@ -177,8 +175,7 @@
                 for (var i = keyChildren.length - 1; i >= 0; i--) {
                     var newComp = zl_F2AE_processKey(jsonPath, childObjectComp, keyChildren[i], objectKey, sceneScale);
                     newComp.transform.anchorPoint.setValue([0,0]);
-                    newComp.transform.position.setValue([keyChildren[i].layerFrame.x - objectKey.layerFrame.x, keyChildren[i].layerFrame.y - objectKey.layerFrame.y]);
-                    newComp.transform.scale.setValue([100/3,100/3]);
+                    newComp.transform.position.setValue([keyChildren[i].layerFrame.x*sceneScale, keyChildren[i].layerFrame.y*sceneScale]);
                 }
 
                 return newCompAsLayer;
@@ -233,8 +230,7 @@
                 win.ddSection.alignment = "row";
                 win.ddLabel = win.ddSection.add("statictext", undefined, "Scale: ");
                 var scaleDropdown = win.ddSection.add("dropdownlist", undefined, ["one", "two", "three"]);
-                scaleDropdown.selection = 0;
-
+                scaleDropdown.selection = 2;
         }
 
         if (win instanceof Window) {
