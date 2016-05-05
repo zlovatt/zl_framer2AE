@@ -111,14 +111,14 @@
         objectComp - current comp
         objectKey - current key
         objectParent - parent object
+        sceneScale - @3x, @2x, etc
 
         Returns:
         Nothing.
     ******************************/
-    function zl_F2AE_processKey (jsonPath, objectComp, objectKey, objectParent){
+    function zl_F2AE_processKey (jsonPath, objectComp, objectKey, objectParent, sceneScale){
         var keyChildren = objectKey.children;
         var skipComp = false;
-
 
         if (objectComp == undefined){
             var compFolder = app.project.items.addFolder(objectKey.name);
@@ -145,16 +145,18 @@
 
         if (objectKey.hasOwnProperty('image')) { // yes image
             var childImage = zl_F2AE_importImage(jsonPath, objectComp, objectKey, compFolder);
+            childImage.transform.scale.setValue([100/3,100/3]);
             childImage.transform.anchorPoint.setValue([0,0]);
             childImage.transform.position.setValue([objectKey.layerFrame.x, objectKey.layerFrame.y]);
 
             if (keyChildren.length > 0) { // yes children, yes image
 
                 for (var i = keyChildren.length - 1; i >= 0; i--) {
-                    var newChild = zl_F2AE_processKey(jsonPath, objectComp, keyChildren[i], objectKey);
+                    var newChild = zl_F2AE_processKey(jsonPath, objectComp, keyChildren[i], objectKey, sceneScale);
                     newChild.parent = childImage;
                     newChild.transform.anchorPoint.setValue([0,0]);
-                    newChild.transform.position.setValue([keyChildren[i].layerFrame.x - objectKey.layerFrame.x, keyChildren[i].layerFrame.y - objectKey.layerFrame.y]);
+                    newChild.transform.position.setValue([keyChildren[i].layerFrame.x*sceneScale - objectKey.layerFrame.x*sceneScale, keyChildren[i].layerFrame.y*sceneScale - objectKey.layerFrame.y*sceneScale]);
+                    // newChild.transform.scale.setValue([100/3,100/3]);
                 }
             } else { // yes image, no children
             }
@@ -173,9 +175,10 @@
                 }
 
                 for (var i = keyChildren.length - 1; i >= 0; i--) {
-                    var newComp = zl_F2AE_processKey(jsonPath, childObjectComp, keyChildren[i], objectKey);
+                    var newComp = zl_F2AE_processKey(jsonPath, childObjectComp, keyChildren[i], objectKey, sceneScale);
                     newComp.transform.anchorPoint.setValue([0,0]);
                     newComp.transform.position.setValue([keyChildren[i].layerFrame.x - objectKey.layerFrame.x, keyChildren[i].layerFrame.y - objectKey.layerFrame.y]);
+                    newComp.transform.scale.setValue([100/3,100/3]);
                 }
 
                 return newCompAsLayer;
@@ -218,12 +221,20 @@
                     var proj = (app.project) ? app.project: app.newProject();
 
                     for (var i = 0, il = jsonObject.length; i < il; i++){
-                        zl_F2AE_processKey(jsonPath, undefined, jsonObject[i]);
+                        var scaleAmt = parseInt(scaleDropdown.selection.index+1);
+                        zl_F2AE_processKey(jsonPath, undefined, jsonObject[i], undefined, scaleAmt);
                     }
                 }
 
                 app.endUndoGroup();
             } // end onClick
+
+            win.ddSection = win.add("group");
+                win.ddSection.alignment = "row";
+                win.ddLabel = win.ddSection.add("statictext", undefined, "Scale: ");
+                var scaleDropdown = win.ddSection.add("dropdownlist", undefined, ["one", "two", "three"]);
+                scaleDropdown.selection = 0;
+
         }
 
         if (win instanceof Window) {
